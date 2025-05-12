@@ -56,6 +56,6 @@ def compute_indices_from_geotiff(input_path):
 
     print("Indices saved successfully.")
 
-# initiate usage
+# initiate usage - use the specific source for the test image
 if __name__ == "__main__":
     compute_indices_from_geotiff("test_field.tif")
