@@ -1,0 +1,7 @@
+# Ignore everything in input and output directories
+input/*
+output/*
+
+# If you want to keep the directories themselves (but not their contents), uncomment the following lines:
+#!input/.gitkeep
+#!output/.gitkeep
