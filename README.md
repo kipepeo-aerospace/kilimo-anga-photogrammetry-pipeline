@@ -49,21 +49,6 @@ docker run --env-file .env kilimo-anga-pipeline
 
 ---
 
-## 🧪 Environment Variables (`.env`)
-
-```env
-AZURE_STORAGE_CONNECTION_STRING=your_blob_storage_connection_string
-INPUT_CONTAINER=raw-images
-OUTPUT_CONTAINER=processed
-FIELD_DIR=field-001
-
-LOCAL_INPUT_DIR=data/input
-LOCAL_TIFF_DIR=data/converted
-LOCAL_OUTPUT_DIR=data/output
-```
-
----
-
 ## 🛰 Pipeline Flow
 
 1. **Download Phase**:
