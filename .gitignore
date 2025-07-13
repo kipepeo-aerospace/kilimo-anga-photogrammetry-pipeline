@@ -1,7 +1,73 @@
-# Ignore everything in input and output directories
-input/*
-output/*
+# Docker artifacts
+*.tar
+*.img
+*.container
+*.pid
 
-# If you want to keep the directories themselves (but not their contents), uncomment the following lines:
-#!input/.gitkeep
-#!output/.gitkeep
+# Ignore docker build context bloat (if created)
+.docker/
+*.dockerfile.backup
+*.tar.gz
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# Environment variables / secrets
+.env
+*.env
+secrets.json
+
+# Local configuration files
+*.local
+*.DS_Store
+
+# VS Code / PyCharm
+.vscode/
+.idea/
+
+# Python virtualenvs
+venv/
+env/
+.venv/
+
+# Test data or outputs
+*.log
+*.tmp
+*.bak
+*.swp
+*.db
+*.sqlite3
+
+# Input/output image data
+input_images/
+output_images/
+input/
+output/
+test_images/
+results/    
+*.tif
+*.jpg
+*.JPG
+*.png
+
+# Large files (raw drone data)
+*.mp4
+*.mov
+*.zip
+
+# Ignore downloaded files
+downloaded_*.txt
+
+# Ignore __test uploads__
+test-*.txt
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini

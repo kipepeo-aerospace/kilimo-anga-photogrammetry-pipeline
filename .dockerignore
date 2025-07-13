@@ -1,0 +1,21 @@
+# Ignore output and test image directories
+test_images/
+results/
+input/
+output/
+
+# Ignore common photogrammetry output file types
+*.tif
+*.npy
+*.las
+*.jpg
+*.jpeg
+*.png
+*.bmp
+*.gif
+
+# Ignore temporary or cache files
+__pycache__/
+*.log
+*.tmp
+*.bak

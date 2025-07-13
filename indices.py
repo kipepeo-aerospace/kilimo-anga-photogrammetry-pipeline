@@ -4,7 +4,6 @@ import os
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import matplotlib
-import pandas as pd
 
 def save_index(index_array, profile, output_path):
     # Scale NDVI [-1, 1] → 0–255
@@ -27,13 +26,8 @@ def save_index(index_array, profile, output_path):
         dst.write(scaled, 1)
         dst.write_colormap(1, colormap)
 
-def save_raw_csv(index_array, output_path):
-    flat = index_array[~np.isnan(index_array)].flatten()
-    df = pd.DataFrame(flat, columns=["Index_Value"])
-    df.to_csv(output_path, index=False)
-
-def compute_vari(input_path):
-    with rasterio.open(input_path) as src:
+def compute_vari(image_path, output_dir):
+    with rasterio.open(image_path) as src:
         red = src.read(1).astype('float32')
         green = src.read(2).astype('float32')
         blue = src.read(3).astype('float32')      
@@ -51,14 +45,14 @@ def compute_vari(input_path):
     vari = np.clip(vari, -1, 1)
     vari = vari.astype(np.float32)
     
+    # Extract the base filename without extension
+    base_name = os.path.splitext(os.path.basename(image_path))[0]
 
-    base = os.path.splitext(input_path)[0]
-    save_index(vari, profile, base + "_VARI.tif")
-    save_raw_csv(vari, base + "_VARI.csv")
+    # Create full output paths using output_dir
+    tif_output_path = os.path.join(output_dir, f"{base_name}_VARI.tif")
+
+    # Save the outputs
+    save_index(vari, profile, tif_output_path)
+
     print("VARI saved successfully.")
 
-
-
-# initiate usage - use the specific source for the test image
-if __name__ == "__main__":
-    compute_vari("output/greenwood_mosaic.tif")

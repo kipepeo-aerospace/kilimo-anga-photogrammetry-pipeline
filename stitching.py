@@ -6,7 +6,6 @@ import rasterio
 from rasterio.merge import merge
 from rasterio.transform import from_origin
 import math
-from pyproj import Transformer
 
 def get_exif_data(image_path):
     """Extracts EXIF data from an image, including GPS info."""
@@ -235,41 +234,15 @@ def stitch_geotiffs(tiff_dir, output_path):
     for src in src_files_to_mosaic:
         src.close()
 
-if __name__ == '__main__':
-    # --- Configuration ---
-    # Directory containing your original JPG drone images
-    jpg_input_directory = 'input/greenwood'
-    
-    # Directory to save the intermediate georeferenced TIFF files
-    tiff_output_directory = 'input/greenwood_geotiffs'
-    
-    # Path for the final, stitched mosaic image
-    final_mosaic_path = 'output/greenwood_mosaic.tif'
-    
-    # --- Create dummy images for testing if they don't exist ---
-    if not os.path.exists(jpg_input_directory):
-        print("Creating a dummy 'drone_images' directory with sample images.")
-        os.makedirs(jpg_input_directory)
-        # In a real scenario, you would have your own JPGs with EXIF data.
-        # This part is just for making the script runnable out-of-the-box.
-        try:
-            # Create a simple blank image
-            dummy_image = Image.new('RGB', (100, 100), color = 'red')
-            dummy_image.save(os.path.join(jpg_input_directory, 'drone_image_1.jpg'))
-            dummy_image.save(os.path.join(jpg_input_directory, 'drone_image_2.jpg'))
-            print("NOTE: The dummy images do not have real GPS data, so the conversion will be skipped.")
-            print("Please replace them with your actual drone images.")
-        except Exception as e:
-            print(f"Could not create dummy images. Please ensure you have images in the '{jpg_input_directory}' folder. Error: {e}")
-
-
+def convert_and_stitch(input_dir, output_dir):
+    """Converts JPG images to GeoTIFFs and stitches them into a mosaic."""
     # --- Pipeline Execution ---
     
     # 1. Convert all JPGs in the input directory to GeoTIFFs
-    print(f"Starting conversion of JPGs from '{jpg_input_directory}' to GeoTIFFs in '{tiff_output_directory}'...")
+    print(f"Starting conversion of JPGs from '{input_dir}' to GeoTIFFs in '{input_dir}'...")
     converted_tiffs = []
-    for jpg_file in glob.glob(os.path.join(jpg_input_directory, '*.JPG')):
-        tiff_path = convert_jpg_to_geotiff(jpg_file, tiff_output_directory)
+    for jpg_file in glob.glob(os.path.join(input_dir, '*.JPG')):
+        tiff_path = convert_jpg_to_geotiff(jpg_file, input_dir)
         if tiff_path:
             converted_tiffs.append(tiff_path)
             print(f"  Successfully converted {jpg_file} to {tiff_path}")
@@ -277,11 +250,14 @@ if __name__ == '__main__':
     # 2. Stitch the newly created GeoTIFFs into a single mosaic
     if converted_tiffs:
         print("\nStarting to stitch GeoTIFFs...")
-        stitch_geotiffs(tiff_output_directory, final_mosaic_path)
-        print(f"\nStitching complete. The final mosaic has been saved to '{final_mosaic_path}'")
+        mosaic_path = os.path.join(output_dir, 'mosaic.tif')
+        stitch_geotiffs(input_dir, mosaic_path)
+        print(f"\nStitching complete. The final mosaic has been saved to '{mosaic_path}'")
+        return mosaic_path
     else:
         print("\nNo images were converted, so stitching was skipped.")
         print("This is likely because no GPS data was found in your JPGs.")
 
-    print("\nPipeline finished.")
 
+
+    
