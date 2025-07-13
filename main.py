@@ -15,6 +15,32 @@ if AZURE_STORAGE_CONNECTION_STRING is None:
 blob_service = BlobServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
 
 # --- Functions for Azure Blob Storage operations ---
+def test_upload_and_download():
+    import tempfile
+
+    # Create dummy data
+    client_id = "test-client"
+    field_id = "test-field"
+    blob_name = generate_blob_name(client_id, field_id, "test.txt")
+
+    # Create a temp file to simulate pipeline output
+    with tempfile.NamedTemporaryFile("w+", delete=False) as tmp_file:
+        tmp_file.write("Hello from Kilimo Anga pipeline 👋")
+        tmp_file_path = tmp_file.name
+
+    # Upload dummy file
+    upload_file_to_blob("processed-mosaics", tmp_file_path, blob_name)
+
+    # Download to verify
+    download_blob_to_file("processed-mosaics", blob_name, "downloaded_test.txt")
+
+    print(f"✅ Test blob uploaded as: {blob_name}")
+    print("📥 Check if 'downloaded_test.txt' has correct contents.")
+
+def generate_blob_name(client_id, field_id, suffix):
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d-%H%M")
+    return f"{client_id}/{field_id}/{timestamp}-{suffix}"
+
 def download_blob_to_file(container_name, blob_name, download_path):
     """
     Downloads a blob from the given container and saves it locally
@@ -35,10 +61,6 @@ def upload_file_to_blob(container_name, local_path, blob_name):
 
     with open(local_path, "rb") as data:
         blob_client.upload_blob(data, overwrite=True)
-
-def generate_blob_name(client_id, field_id, suffix):
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d-%H%M")
-    return f"{client_id}/{field_id}/{timestamp}-{suffix}"
 
 def download_images_for_field(container_name, client_id, field_id):
     """
@@ -62,68 +84,54 @@ def download_images_for_field(container_name, client_id, field_id):
         # Download the blob to the local path
         print(f"Downloading {blob.name} → {local_path}")
         download_blob_to_file(container_name, blob.name, local_path)
-
-def test_upload_and_download():
-    import tempfile
-
-    # Create dummy data
-    client_id = "test-client"
-    field_id = "test-field"
-    blob_name = generate_blob_name(client_id, field_id, "test.txt")
-
-    # Create a temp file to simulate pipeline output
-    with tempfile.NamedTemporaryFile("w+", delete=False) as tmp_file:
-        tmp_file.write("Hello from Kilimo Anga pipeline 👋")
-        tmp_file_path = tmp_file.name
-
-    # Upload dummy file
-    upload_file_to_blob("processed-mosaics", tmp_file_path, blob_name)
-
-    # Download to verify
-    download_blob_to_file("processed-mosaics", blob_name, "downloaded_test.txt")
-
-    print(f"✅ Test blob uploaded as: {blob_name}")
-    print("📥 Check if 'downloaded_test.txt' has correct contents.")
+    
+    return image_dir
 
 def main():
     parser = argparse.ArgumentParser(description="Photogrammetry pipeline for vegetation indices")
-    #parser.add_argument('--input_dir', type=str, required=True, help='Directory with input JPEG images')
-    #parser.add_argument('--output_dir', type=str, required=True, help='Directory to save outputs')
-    
     parser.add_argument('--client_id', type=str, required=True, help='Client identifier')
     parser.add_argument('--field_id', type=str, required=True, help='Field identifier')
     parser.add_argument('--index', type=str, default='VARI', choices=['VARI'], help='Vegetation index to compute')
 
     args = parser.parse_args()
 
-    input_dir = os.path.join("input", args.client_id, args.field_id)
-    output_dir = os.path.join("output", args.client_id, args.field_id)
-
-
     # ---- Download images for the specified client and field ----
     print(f"Downloading images for client '{args.client_id}' and field '{args.field_id}'...")
-    container_name = "raw-images"
-    download_images_for_field(container_name, args.client_id, args.field_id)
+    
+    raw_container = "raw-images"
+    input_dir = download_images_for_field(raw_container, args.client_id, args.field_id)
     
     # ---- Convert and stitch images ----
+    
     print("Converting and stitching images...")
-    stitched_path = convert_and_stitch(args.input_dir, args.output_dir)
+
+    converted_container = "converted-tiles"
+    mosaic_container = "proecssed-mosaics"
+
+    converted_dir, mosaic_path = convert_and_stitch(input_dir, converted_container, mosaic_container)
 
     # ---- Compute the specified vegetation index ----
+    
+    index_container = "index-maps"
+    relative_path = os.path.relpath(converted_dir, start=converted_container)
+    output_dir = os.path.join(index_container, relative_path)
+    os.makedirs(output_dir, exist_ok=True)
+
     if args.index == 'VARI':
         print("Computing VARI...")
-        compute_vari(stitched_path, args.output_dir)
+        compute_vari(mosaic_path, output_dir)
 
     print("Processing complete. Results saved to:", args.output_dir)
 
 if __name__ == "__main__":
-    #main()
+    main()
     #test_upload_and_download()
     
     
-    container_name = "raw-images"
-    client_id = "test"
-    field_id = "field-001"
+    #container_name = "raw-images"
+    #client_id = "test"
+    #field_id = "field-001"
 
     # Download images for a specific field
-    download_images_for_field(container_name, client_id, field_id)
+    #text = download_images_for_field(container_name, client_id, field_id)
+    #print(text)

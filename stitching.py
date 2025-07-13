@@ -234,26 +234,41 @@ def stitch_geotiffs(tiff_dir, output_path):
     for src in src_files_to_mosaic:
         src.close()
 
-def convert_and_stitch(input_dir, output_dir):
+def convert_and_stitch(input_dir, converted, mosaic):
     """Converts JPG images to GeoTIFFs and stitches them into a mosaic."""
     # --- Pipeline Execution ---
     
     # 1. Convert all JPGs in the input directory to GeoTIFFs
-    print(f"Starting conversion of JPGs from '{input_dir}' to GeoTIFFs in '{input_dir}'...")
+
+    relative_path = os.path.relpath(input_dir, start="raw-images/")
+    converted_dir = os.path.join(converted, relative_path)
+    os.makedirs(converted_dir, exist_ok=True)
+
+    print(f"Starting conversion of JPGs from '{input_dir}' to GeoTIFFs in '{converted_dir}'...")
     converted_tiffs = []
     for jpg_file in glob.glob(os.path.join(input_dir, '*.JPG')):
-        tiff_path = convert_jpg_to_geotiff(jpg_file, input_dir)
+        tiff_path = convert_jpg_to_geotiff(jpg_file, converted_dir)
         if tiff_path:
             converted_tiffs.append(tiff_path)
             print(f"  Successfully converted {jpg_file} to {tiff_path}")
+    
+    print(f"\nConversion complete. {len(converted_tiffs)} GeoTIFFs created in '{converted_dir}'")
+    
+    if not converted_tiffs:
+        print("No valid GeoTIFFs were created. Exiting.")
+        return None
 
     # 2. Stitch the newly created GeoTIFFs into a single mosaic
     if converted_tiffs:
         print("\nStarting to stitch GeoTIFFs...")
-        mosaic_path = os.path.join(output_dir, 'mosaic.tif')
-        stitch_geotiffs(input_dir, mosaic_path)
+        
+        mosaic_dir = os.path.join(mosaic,relative_path)
+        os.makedirs(mosaic_dir, exist_ok=True)
+
+        mosaic_path = os.path.join(mosaic_dir, 'mosaic.tif')
+        stitch_geotiffs(converted_dir, mosaic_path)
         print(f"\nStitching complete. The final mosaic has been saved to '{mosaic_path}'")
-        return mosaic_path
+        return converted_dir, mosaic_path
     else:
         print("\nNo images were converted, so stitching was skipped.")
         print("This is likely because no GPS data was found in your JPGs.")
