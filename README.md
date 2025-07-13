@@ -6,8 +6,8 @@ This is a containerized drone image processing pipeline developed by **Kipepeo A
 
 ## 🛠 Features
 
-* 📷 Converts raw `.JPG` images to `.TIFF` format using **Pillow**
-* 🧩 Stitches converted `.TIFF` images into a georeferenced mosaic using **Rasterio**
+* 📷 Converts raw `.JPG` images to `.TIF` format using **Pillow**
+* 🧩 Stitches converted `.TIF` images into a georeferenced mosaic using **Rasterio**
 * 🌿 Computes vegetation indices (e.g., NDVI) from stitched mosaics
 * 📦 Fully containerized with **Docker**, enabling cloud-native deployments
 * ☁️ Integrated with **Azure Blob Storage** for both input and output handling
@@ -24,8 +24,10 @@ photogrammetry-pipeline/
 ├── stitching.py                # Step 2: Stitch TIFFs into orthomosaic
 ├── indices.py                  # Step 3: Generate vegetation indices (e.g., NDVI)
 ├── main.py                     # Main script to run the full pipeline
+├── azure_blob.py               # Contains azure blob functions
 │
 ├── Dockerfile                  # Lightweight Python + GDAL container setup
+├── .dockerignore               # Things to ignore in the docker build
 ├── requirements.txt            # Python dependencies
 ├── .env                        # Environment variables (hidden from public)
 └── README.md                   # This file
@@ -116,7 +118,7 @@ index-maps/
 
 ## 🧑‍💻 Maintainers
 
-* **Brian Lembuss** – Aerospace Engineering, Software Architect
+* **Brian Lembuss** – Aerospace Engineering, Software & Systems Architect
 * **Kipepeo Aerospace Ltd.** under the **Kilimo Anga** initiative
 
 ---
