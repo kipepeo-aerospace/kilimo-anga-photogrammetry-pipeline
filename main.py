@@ -14,6 +14,7 @@ if AZURE_STORAGE_CONNECTION_STRING is None:
 # Initialize the blob service client
 blob_service = BlobServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
 
+# --- Functions for Azure Blob Storage operations ---
 def download_blob_to_file(container_name, blob_name, download_path):
     """
     Downloads a blob from the given container and saves it locally
@@ -38,6 +39,29 @@ def upload_file_to_blob(container_name, local_path, blob_name):
 def generate_blob_name(client_id, field_id, suffix):
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d-%H%M")
     return f"{client_id}/{field_id}/{timestamp}-{suffix}"
+
+def download_images_for_field(container_name, client_id, field_id, local_dir="input"):
+    """
+    Downloads all images under raw-images/<client_id>/<field_id>/ into the local input folder
+    """
+    prefix = f"raw-images/{client_id}/{field_id}/"
+    os.makedirs(local_dir, exist_ok=True)
+
+    container_client = blob_service.get_container_client(container_name)
+    blobs = container_client.list_blobs(name_starts_with=prefix)
+
+    for blob in blobs:
+        if blob.name.endswith("/"):
+            continue  # skip virtual folders
+
+        relative_path = os.path.relpath(blob.name, start="raw-images/")
+        local_path = os.path.join(local_dir, relative_path)
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+
+        # Download the blob to the local path
+        print(f"Downloading {blob.name} → {local_path}")
+        download_blob_to_file(container_name, blob.name, local_path)
+
 
 def test_upload_and_download():
     import tempfile
@@ -82,4 +106,12 @@ def main():
 
 if __name__ == "__main__":
     #main()
-    test_upload_and_download()
+    #test_upload_and_download()
+    
+    
+    container_name = "raw-images"
+    client_id = "test"
+    field_id = "field-001"
+
+    # Download images for a specific field
+    download_images_for_field(container_name, client_id, field_id)
