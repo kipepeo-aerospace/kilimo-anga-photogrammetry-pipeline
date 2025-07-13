@@ -40,28 +40,28 @@ def generate_blob_name(client_id, field_id, suffix):
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d-%H%M")
     return f"{client_id}/{field_id}/{timestamp}-{suffix}"
 
-def download_images_for_field(container_name, client_id, field_id, local_dir="input"):
+def download_images_for_field(container_name, client_id, field_id):
     """
     Downloads all images under raw-images/<client_id>/<field_id>/ into the local input folder
     """
-    prefix = f"raw-images/{client_id}/{field_id}/"
-    os.makedirs(local_dir, exist_ok=True)
+    image_dir = f"raw-images/{client_id}/{field_id}/"
 
     container_client = blob_service.get_container_client(container_name)
-    blobs = container_client.list_blobs(name_starts_with=prefix)
+    blobs = container_client.list_blobs(name_starts_with=image_dir)
 
     for blob in blobs:
         if blob.name.endswith("/"):
             continue  # skip virtual folders
 
-        relative_path = os.path.relpath(blob.name, start="raw-images/")
-        local_path = os.path.join(local_dir, relative_path)
+        #relative_path = os.path.relpath(blob.name, start="raw-images/")
+        #local_path = os.path.join(local_dir, relative_path)
+        
+        local_path = blob.name
         os.makedirs(os.path.dirname(local_path), exist_ok=True)
 
         # Download the blob to the local path
         print(f"Downloading {blob.name} → {local_path}")
         download_blob_to_file(container_name, blob.name, local_path)
-
 
 def test_upload_and_download():
     import tempfile
@@ -87,20 +87,32 @@ def test_upload_and_download():
 
 def main():
     parser = argparse.ArgumentParser(description="Photogrammetry pipeline for vegetation indices")
-    parser.add_argument('--input_dir', type=str, required=True, help='Directory with input JPEG images')
-    parser.add_argument('--output_dir', type=str, required=True, help='Directory to save outputs')
+    #parser.add_argument('--input_dir', type=str, required=True, help='Directory with input JPEG images')
+    #parser.add_argument('--output_dir', type=str, required=True, help='Directory to save outputs')
+    
+    parser.add_argument('--client_id', type=str, required=True, help='Client identifier')
+    parser.add_argument('--field_id', type=str, required=True, help='Field identifier')
     parser.add_argument('--index', type=str, default='VARI', choices=['VARI'], help='Vegetation index to compute')
 
     args = parser.parse_args()
 
-    os.makedirs(args.output_dir, exist_ok=True)
+    input_dir = os.path.join("input", args.client_id, args.field_id)
+    output_dir = os.path.join("output", args.client_id, args.field_id)
 
+
+    # ---- Download images for the specified client and field ----
+    print(f"Downloading images for client '{args.client_id}' and field '{args.field_id}'...")
+    container_name = "raw-images"
+    download_images_for_field(container_name, args.client_id, args.field_id)
+    
+    # ---- Convert and stitch images ----
     print("Converting and stitching images...")
-    #stitched_path = convert_and_stitch(args.input_dir, args.output_dir)
+    stitched_path = convert_and_stitch(args.input_dir, args.output_dir)
 
+    # ---- Compute the specified vegetation index ----
     if args.index == 'VARI':
         print("Computing VARI...")
-        #compute_vari(stitched_path, args.output_dir)
+        compute_vari(stitched_path, args.output_dir)
 
     print("Processing complete. Results saved to:", args.output_dir)
 
