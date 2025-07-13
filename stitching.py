@@ -245,7 +245,9 @@ def convert_and_stitch(input_dir, converted, mosaic):
     os.makedirs(converted_dir, exist_ok=True)
 
     print(f"Starting conversion of JPGs from '{input_dir}' to GeoTIFFs in '{converted_dir}'...")
+    
     converted_tiffs = []
+    
     for jpg_file in glob.glob(os.path.join(input_dir, '*.JPG')):
         tiff_path = convert_jpg_to_geotiff(jpg_file, converted_dir)
         if tiff_path:
@@ -268,6 +270,7 @@ def convert_and_stitch(input_dir, converted, mosaic):
         mosaic_path = os.path.join(mosaic_dir, 'mosaic.tif')
         stitch_geotiffs(converted_dir, mosaic_path)
         print(f"\nStitching complete. The final mosaic has been saved to '{mosaic_path}'")
+        
         return converted_dir, mosaic_path
     else:
         print("\nNo images were converted, so stitching was skipped.")

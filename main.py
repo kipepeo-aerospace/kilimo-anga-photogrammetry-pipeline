@@ -81,6 +81,11 @@ def download_images_for_field(container_name, client_id, field_id):
         local_path = blob.name
         os.makedirs(os.path.dirname(local_path), exist_ok=True)
 
+        # Check if file already exists
+        if os.path.exists(local_path):
+            print(f"Skipping {blob.name} — already exists at {local_path}")
+            continue
+
         # Download the blob to the local path
         print(f"Downloading {blob.name} → {local_path}")
         download_blob_to_file(container_name, blob.name, local_path)
@@ -121,7 +126,7 @@ def main():
         print("Computing VARI...")
         compute_vari(mosaic_path, output_dir)
 
-    print("Processing complete. Results saved to:", args.output_dir)
+    print("Processing complete. Results saved to:", output_dir)
 
 if __name__ == "__main__":
     main()
