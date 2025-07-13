@@ -44,13 +44,13 @@ def runtime_args():
         '--client_id', 
         type=str, 
         default=os.getenv("CLIENT_ID"),
-        required=True, 
+        required=False, 
         help='Client identifier')
     parser.add_argument(
         '--field_id', 
         type=str, 
         default=os.getenv("FIELD_ID"),
-        required=True, 
+        required=False, 
         help='Field identifier')
     parser.add_argument(
         '--index', 
