@@ -3,19 +3,25 @@ test_images/
 results/
 input/
 output/
+raw-images/
+converted-tiles/
+processed-mosaics/
+index-maps/
 
-# Ignore common photogrammetry output file types
-*.tif
-*.npy
-*.las
-*.jpg
-*.jpeg
-*.png
-*.bmp
-*.gif
+# Ignore Git files
+.git
+.gitignore
+
+# Ignore logs or temp files
+*.log
+logs/
+
+# Ignore env files with secrets
+.env
+.env.*
 
 # Ignore temporary or cache files
-__pycache__/
-*.log
 *.tmp
 *.bak
+__pycache__/
+*.pyc

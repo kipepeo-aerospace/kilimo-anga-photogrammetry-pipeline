@@ -1,167 +1,139 @@
 import argparse
 from stitching import convert_and_stitch
 from indices import compute_vari
+from azure_blob import upload_file_to_blob, download_images_for_field
 import os
-from azure.storage.blob import BlobServiceClient
-from datetime import datetime, timezone
 import glob
+from dotenv import load_dotenv
+import logging
 
-# Get the connection string securely from the environment
-AZURE_STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+# ============================================
+# Logging configuration
+# ============================================
 
-if AZURE_STORAGE_CONNECTION_STRING is None:
-    raise EnvironmentError("AZURE_STORAGE_CONNECTION_STRING is not set.")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.StreamHandler(),                      # Console
+        #logging.FileHandler("logs/photogrammetry-pipeline.log", mode='a') # Log file
+    ]
+)
 
-# Initialize the blob service client
-blob_service = BlobServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
+logger = logging.getLogger(__name__)
 
-# --- Functions for Azure Blob Storage operations ---
-def test_upload_and_download():
-    import tempfile
+# ============================================
+# Load environment variables from .env file 
+# ============================================
 
-    # Create dummy data
-    client_id = "test-client"
-    field_id = "test-field"
-    blob_name = generate_blob_name(client_id, field_id, "test.txt")
+load_dotenv()  # Load environment variables from .env file
 
-    # Create a temp file to simulate pipeline output
-    with tempfile.NamedTemporaryFile("w+", delete=False) as tmp_file:
-        tmp_file.write("Hello from Kilimo Anga pipeline 👋")
-        tmp_file_path = tmp_file.name
+# Define container names from environment variables
+RAW_IMAGES_CONTAINER = os.environ.get("RAW_IMAGES_CONTAINER")
+TIF_CONTAINER = os.environ.get("TIFF_CONTAINER")
+MOSAIC_CONTAINER = os.environ.get("MOSAIC_CONTAINER")
+INDICES_CONTAINER = os.environ.get("INDICES_CONTAINER")
 
-    # Upload dummy file
-    upload_file_to_blob("processed-mosaics", tmp_file_path, blob_name)
+# ============================================
+# Argument parsing for the pipeline
+# ============================================
 
-    # Download to verify
-    download_blob_to_file("processed-mosaics", blob_name, "downloaded_test.txt")
-
-    print(f"✅ Test blob uploaded as: {blob_name}")
-    print("📥 Check if 'downloaded_test.txt' has correct contents.")
-
-def generate_blob_name(client_id, field_id, suffix):
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d-%H%M")
-    return f"{client_id}/{field_id}/{timestamp}-{suffix}"
-
-def download_blob_to_file(container_name, blob_name, download_path):
-    """
-    Downloads a blob from the given container and saves it locally
-    """
-    container_client = blob_service.get_container_client(container_name)
-    blob_client = container_client.get_blob_client(blob_name)
-
-    with open(download_path, "wb") as file:
-        download_stream = blob_client.download_blob()
-        file.write(download_stream.readall())
-
-def upload_file_to_blob(container_name, local_path, blob_name):
-    """
-    Uploads a local file to the specified blob container.
-    """
-    container_client = blob_service.get_container_client(container_name)
-    blob_client = container_client.get_blob_client(blob_name)
-
-    with open(local_path, "rb") as data:
-        blob_client.upload_blob(data, overwrite=True)
-
-def download_images_for_field(container_name, client_id, field_id):
-    """
-    Downloads all images under raw-images/<client_id>/<field_id>/ into the local input folder
-    """
-    image_dir = f"{container_name}/{client_id}/{field_id}/"
-
-    container_client = blob_service.get_container_client(container_name)
-    blobs = container_client.list_blobs(name_starts_with=image_dir)
-
-    for blob in blobs:
-        if blob.name.endswith("/"):
-            continue  # skip virtual folders
-
-        #relative_path = os.path.relpath(blob.name, start="raw-images/")
-        #local_path = os.path.join(local_dir, relative_path)
-        
-        local_path = blob.name
-        os.makedirs(os.path.dirname(local_path), exist_ok=True)
-
-        # Check if file already exists
-        if os.path.exists(local_path):
-            print(f"  Skipping {blob.name} — already exists at {local_path}")
-            continue
-
-        # Download the blob to the local path
-        print(f"  Downloading {blob.name} → {local_path}")
-        download_blob_to_file(container_name, blob.name, local_path)
+def runtime_args():
+    parser = argparse.ArgumentParser(description="Kilimo Anga Photogrammetry Pipeline")
+    parser.add_argument(
+        '--client_id', 
+        type=str, 
+        default=os.getenv("CLIENT_ID"),
+        required=True, 
+        help='Client identifier')
+    parser.add_argument(
+        '--field_id', 
+        type=str, 
+        default=os.getenv("FIELD_ID"),
+        required=True, 
+        help='Field identifier')
+    parser.add_argument(
+        '--index', 
+        type=str, 
+        default=os.getenv("VEGETATION_INDEX"),
+        choices=['VARI'], 
+        help='Vegetation index to compute')
     
-    return image_dir
+    args =  parser.parse_args()
+    
+    # Fail early if any required input is missing
+    if not args.client_id or not args.field_id or not args.index:
+        raise ValueError("Missing client_id, field_id, or index.")
+
+    return args
+
+# ============================================
+# Main pipeline function
+# ============================================
 
 def main():
-    parser = argparse.ArgumentParser(description="Photogrammetry pipeline for vegetation indices")
-    parser.add_argument('--client_id', type=str, required=True, help='Client identifier')
-    parser.add_argument('--field_id', type=str, required=True, help='Field identifier')
-    parser.add_argument('--index', type=str, default='VARI', choices=['VARI'], help='Vegetation index to compute')
 
-    args = parser.parse_args()
+    args = runtime_args()
 
     # ---- Download images for the specified client and field ----
-    print(f"\nDownloading images for client '{args.client_id}' and field '{args.field_id}'...")
+    logger.info(f"\nDownloading images for client '{args.client_id}' and field '{args.field_id}'...")
     
-    raw_container = "raw-images"
-    input_dir = download_images_for_field(raw_container, args.client_id, args.field_id)
+    input_dir = download_images_for_field(RAW_IMAGES_CONTAINER, args.client_id, args.field_id)
     
     # ---- Convert and stitch images ----
     
-    print("\nConverting and stitching images...")
+    logger.info("\nConverting and stitching images...")
 
-    converted_container = "converted-tiles"
-    mosaic_container = "processed-mosaics"
-
-    converted_dir, mosaic_path = convert_and_stitch(input_dir, converted_container, mosaic_container)
+    converted_dir, mosaic_path = convert_and_stitch(input_dir, TIF_CONTAINER, MOSAIC_CONTAINER)
 
     # ---- Upload the converted images to the converted container ----
     
-    print(f"\nUploading converted images to '{converted_container}'...")
+    logger.info(f"\nUploading converted images to '{TIF_CONTAINER}'...")
     
     for tif_file in glob.glob(os.path.join(converted_dir, '*.tif')):
         blob_name = tif_file
         # Upload the blob to the container
-        print(f"  Uploading {blob_name} to {converted_dir}...")
-        upload_file_to_blob(converted_container, tif_file, blob_name)
+        logger.info(f"  Uploading {blob_name} to {converted_dir}...")
+        upload_file_to_blob(TIF_CONTAINER, tif_file, blob_name)
 
-    print("\nConverted images uploaded successfully.")
+    logger.info("\nConverted images uploaded successfully.")
     
     # ---- Upload the final mosaic to the mosaic container ----
     
-    print(f"  Uploading final mosaic to '{mosaic_container}'...")
-    upload_file_to_blob(mosaic_container, mosaic_path, mosaic_path)
-    print("\nMosaic uploaded successfully.")
+    logger.info(f"  Uploading final mosaic to '{MOSAIC_CONTAINER}'...")
+    upload_file_to_blob(MOSAIC_CONTAINER, mosaic_path, mosaic_path)
+    logger.info("\nMosaic uploaded successfully.")
     
     # ---- Compute the specified vegetation index ----
-    
-    index_container = "index-maps"
-    relative_path = os.path.relpath(converted_dir, start=converted_container)
-    output_dir = os.path.join(index_container, relative_path)
+
+    relative_path = os.path.relpath(converted_dir, start=TIF_CONTAINER)
+    output_dir = os.path.join(INDICES_CONTAINER, relative_path)
     os.makedirs(output_dir, exist_ok=True)
 
     if args.index == 'VARI':
-        print("\nComputing VARI...")
+        logger.info("\nComputing VARI...")
         compute_vari(mosaic_path, output_dir)
 
-    print("\nProcessing complete. Results saved to:", output_dir)
+    logger.info("\nProcessing complete. Results saved to:", output_dir)
 
     # ---- Upload the index results ----
     
-    print(f"\nUploading index results to '{index_container}'...")
+    logger.info(f"\nUploading index results to '{INDICES_CONTAINER}'...")
     
     for index_file in glob.glob(os.path.join(output_dir, '*.tif')):
         blob_name = index_file
-        print(f"  Uploading {index_file} as {blob_name}")
-        upload_file_to_blob(index_container, index_file, blob_name)
-        
+        logger(f"  Uploading {index_file} as {blob_name}")
+        upload_file_to_blob(INDICES_CONTAINER, index_file, blob_name)
 
-    print("\nIndex results uploaded successfully.")
+    logger.info("\nIndex results uploaded successfully.")
 
-    print("\nAll pipeline operations completed successfully.")
+    logger.info("\nAll pipeline operations completed successfully.")
+
+# ============================================
+# Entry point for the script
+# ============================================
 
 if __name__ == "__main__":
-    print("Initailizing the Kilimo Anga Photogrammetry Pipeline")
+    logger.info("Initailizing the Kilimo Anga Photogrammetry Pipeline")
     main()
     

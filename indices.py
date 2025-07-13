@@ -1,9 +1,18 @@
 import rasterio
 import numpy as np
 import os
-import matplotlib.pyplot as plt
-from matplotlib import cm
 import matplotlib
+import logging
+
+# ============================================
+# Logging configuration
+# ============================================
+
+logger = logging.getLogger(__name__)
+
+# ============================================
+# Index computation functions 
+# ============================================
 
 def save_index(index_array, profile, output_path):
     # Scale NDVI [-1, 1] → 0–255
@@ -51,5 +60,5 @@ def compute_vari(image_path, output_dir):
     # Save the outputs
     save_index(vari, profile, tif_output_path)
 
-    print("\nVARI saved successfully.")
+    logger.info("\nVARI saved successfully.")
 

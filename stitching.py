@@ -6,6 +6,17 @@ import rasterio
 from rasterio.merge import merge
 from rasterio.transform import from_origin
 import math
+import logging
+
+# ============================================
+# Logging configuration
+# ============================================
+
+logger = logging.getLogger(__name__)
+
+# ============================================
+# Helper functions for conversion and stitching 
+# ============================================
 
 def get_exif_data(image_path):
     """Extracts EXIF data from an image, including GPS info."""
@@ -132,6 +143,10 @@ def get_utm_epsg(lat, lon):
     else:
         return f"EPSG:{32700 + zone_number}" # Southern hemisphere
 
+# ============================================
+# GeoTIFF conversion and stitching functions 
+# ============================================
+
 def convert_jpg_to_geotiff(jpg_path, output_dir):
     """Converts a JPG to a GeoTIFF, embedding GPS data."""
     if not os.path.exists(output_dir):
@@ -146,7 +161,7 @@ def convert_jpg_to_geotiff(jpg_path, output_dir):
     sensor_width = 13.2  # hardcoded value for the known DJI FC6310
     
     if lat is None or lon is None:
-        print(f"Warning: No GPS data found for {jpg_path}. Skipping.")
+        logger.warning(f"No GPS data found for {jpg_path}. Skipping.")
         return None
 
     with rasterio.open(jpg_path) as src:
@@ -210,7 +225,7 @@ def stitch_geotiffs(tiff_dir, output_path):
     """Stitches multiple GeoTIFFs into a single mosaic."""
     tiff_files = glob.glob(os.path.join(tiff_dir, '*.tif'))
     if not tiff_files:
-        print("No TIFF files found to stitch.")
+        logger.error("No TIFF files found to stitch.")
         return
 
     src_files_to_mosaic = []
@@ -244,7 +259,7 @@ def convert_and_stitch(input_dir, converted, mosaic):
     converted_dir = os.path.join(converted, relative_path)
     os.makedirs(converted_dir, exist_ok=True)
 
-    print(f"\nStarting conversion of JPGs from '{input_dir}' to GeoTIFFs in '{converted_dir}'...")
+    logger.info(f"\nStarting conversion of JPGs from '{input_dir}' to GeoTIFFs in '{converted_dir}'...")
     
     converted_tiffs = []
     
@@ -252,29 +267,29 @@ def convert_and_stitch(input_dir, converted, mosaic):
         tiff_path = convert_jpg_to_geotiff(jpg_file, converted_dir)
         if tiff_path:
             converted_tiffs.append(tiff_path)
-            print(f"  Successfully converted {jpg_file} to {tiff_path}")
+            logger.info(f"  Successfully converted {jpg_file} to {tiff_path}")
     
-    print(f"\nConversion complete. {len(converted_tiffs)} GeoTIFFs created in '{converted_dir}'")
+    logger.info(f"\nConversion complete. {len(converted_tiffs)} GeoTIFFs created in '{converted_dir}'")
     
     if not converted_tiffs:
-        print("No valid GeoTIFFs were created. Exiting.")
+        logger.error("No valid GeoTIFFs were created. Exiting.")
         return None
 
     # 2. Stitch the newly created GeoTIFFs into a single mosaic
     if converted_tiffs:
-        print("\nStarting to stitch GeoTIFFs...")
+        logger.info("\nStarting to stitch GeoTIFFs...")
         
         mosaic_dir = os.path.join(mosaic,relative_path)
         os.makedirs(mosaic_dir, exist_ok=True)
 
         mosaic_path = os.path.join(mosaic_dir, 'mosaic.tif')
         stitch_geotiffs(converted_dir, mosaic_path)
-        print(f"\nStitching complete. The final mosaic has been saved to '{mosaic_path}'")
+        logger.info(f"\nStitching complete. The final mosaic has been saved to '{mosaic_path}'")
 
         return converted_dir, mosaic_path
     else:
-        print("\nNo images were converted, so stitching was skipped.")
-        print("This is likely because no GPS data was found in your JPGs.")
+        logger.error("\nNo images were converted, so stitching was skipped.")
+        logger.error("This is likely because no GPS data was found in your JPGs.")
 
 
 
