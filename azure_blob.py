@@ -73,7 +73,12 @@ def upload_file_to_blob(container_name, local_path, blob_name):
     blob_client = container_client.get_blob_client(blob_name)
 
     with open(local_path, "rb") as data:
-        blob_client.upload_blob(data, overwrite=True, timeout=600)  # Increased timeout for large files
+        blob_client.upload_blob(
+            data, 
+            overwrite=True,  
+            max_concurrency=1,  # Use 1 thread for slow connections
+            max_block_size=2 * 1024 * 1024,  # 2MB chunks
+            timeout=600)  # Increased timeout for large files
 
 def download_images_for_field(container_name, client_id, field_id):
     """
