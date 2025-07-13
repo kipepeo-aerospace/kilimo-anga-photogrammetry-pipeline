@@ -2,7 +2,13 @@ import os
 from azure.storage.blob import BlobServiceClient
 from datetime import datetime, timezone
 from dotenv import load_dotenv
+import logging
 
+# ============================================
+# Logging configuration
+# ============================================
+
+logger = logging.getLogger(__name__)
 # ============================================
 # Load environment variables from .env file 
 # ============================================
@@ -67,7 +73,7 @@ def upload_file_to_blob(container_name, local_path, blob_name):
     blob_client = container_client.get_blob_client(blob_name)
 
     with open(local_path, "rb") as data:
-        blob_client.upload_blob(data, overwrite=True)
+        blob_client.upload_blob(data, overwrite=True, timeout=600)  # Increased timeout for large files
 
 def download_images_for_field(container_name, client_id, field_id):
     """
@@ -87,11 +93,11 @@ def download_images_for_field(container_name, client_id, field_id):
 
         # Check if file already exists
         if os.path.exists(local_path):
-            print(f"  Skipping {blob.name} — already exists at {local_path}")
+            logger.info(f"  Skipping {blob.name} — already exists at {local_path}")
             continue
 
         # Download the blob to the local path
-        print(f"  Downloading {blob.name} → {local_path}")
+        logger.info(f"  Downloading {blob.name} → {local_path}")
         download_blob_to_file(container_name, blob.name, local_path)
     
     return image_dir

@@ -60,5 +60,5 @@ def compute_vari(image_path, output_dir):
     # Save the outputs
     save_index(vari, profile, tif_output_path)
 
-    logger.info("\nVARI saved successfully.")
+    logger.info("VARI saved successfully.")
 

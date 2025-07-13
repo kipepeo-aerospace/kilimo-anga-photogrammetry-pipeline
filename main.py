@@ -77,19 +77,19 @@ def main():
     args = runtime_args()
 
     # ---- Download images for the specified client and field ----
-    logger.info(f"\nDownloading images for client '{args.client_id}' and field '{args.field_id}'...")
+    logger.info(f"Downloading images for client '{args.client_id}' and field '{args.field_id}'...")
     
     input_dir = download_images_for_field(RAW_IMAGES_CONTAINER, args.client_id, args.field_id)
     
     # ---- Convert and stitch images ----
     
-    logger.info("\nConverting and stitching images...")
+    logger.info("Converting and stitching images...")
 
     converted_dir, mosaic_path = convert_and_stitch(input_dir, TIF_CONTAINER, MOSAIC_CONTAINER)
 
     # ---- Upload the converted images to the converted container ----
     
-    logger.info(f"\nUploading converted images to '{TIF_CONTAINER}'...")
+    logger.info(f"Uploading converted images to '{TIF_CONTAINER}'...")
     
     for tif_file in glob.glob(os.path.join(converted_dir, '*.tif')):
         blob_name = tif_file
@@ -97,13 +97,13 @@ def main():
         logger.info(f"  Uploading {blob_name} to {converted_dir}...")
         upload_file_to_blob(TIF_CONTAINER, tif_file, blob_name)
 
-    logger.info("\nConverted images uploaded successfully.")
+    logger.info("Converted images uploaded successfully.")
     
     # ---- Upload the final mosaic to the mosaic container ----
     
     logger.info(f"  Uploading final mosaic to '{MOSAIC_CONTAINER}'...")
     upload_file_to_blob(MOSAIC_CONTAINER, mosaic_path, mosaic_path)
-    logger.info("\nMosaic uploaded successfully.")
+    logger.info("Mosaic uploaded successfully.")
     
     # ---- Compute the specified vegetation index ----
 
@@ -112,23 +112,23 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
 
     if args.index == 'VARI':
-        logger.info("\nComputing VARI...")
+        logger.info("Computing VARI...")
         compute_vari(mosaic_path, output_dir)
 
-    logger.info("\nProcessing complete. Results saved to:", output_dir)
+    logger.info("Processing complete. Results saved to:", output_dir)
 
     # ---- Upload the index results ----
     
-    logger.info(f"\nUploading index results to '{INDICES_CONTAINER}'...")
+    logger.info(f"Uploading index results to '{INDICES_CONTAINER}'...")
     
     for index_file in glob.glob(os.path.join(output_dir, '*.tif')):
         blob_name = index_file
         logger(f"  Uploading {index_file} as {blob_name}")
         upload_file_to_blob(INDICES_CONTAINER, index_file, blob_name)
 
-    logger.info("\nIndex results uploaded successfully.")
+    logger.info("Index results uploaded successfully.")
 
-    logger.info("\nAll pipeline operations completed successfully.")
+    logger.info("All pipeline operations completed successfully.")
 
 # ============================================
 # Entry point for the script
