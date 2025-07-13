@@ -1,7 +1,7 @@
 import argparse
 from stitching import convert_and_stitch
 from indices import compute_vari
-from azure_blob import upload_file_to_blob, download_images_for_field
+from azure_blob import upload_file_to_blob, download_images_for_field, upload_large_file_to_blob
 import os
 import glob
 from dotenv import load_dotenv
@@ -102,7 +102,7 @@ def main():
     # ---- Upload the final mosaic to the mosaic container ----
     
     logger.info(f"  Uploading final mosaic to '{MOSAIC_CONTAINER}'...")
-    upload_file_to_blob(MOSAIC_CONTAINER, mosaic_path, mosaic_path)
+    upload_large_file_to_blob(MOSAIC_CONTAINER, mosaic_path, mosaic_path)
     logger.info("Mosaic uploaded successfully.")
     
     # ---- Compute the specified vegetation index ----
@@ -124,7 +124,7 @@ def main():
     for index_file in glob.glob(os.path.join(output_dir, '*.tif')):
         blob_name = index_file
         logger.info(f"  Uploading {index_file} as {blob_name}")
-        upload_file_to_blob(INDICES_CONTAINER, index_file, blob_name)
+        upload_large_file_to_blob(INDICES_CONTAINER, index_file, blob_name)
 
     logger.info("Index results uploaded successfully.")
 

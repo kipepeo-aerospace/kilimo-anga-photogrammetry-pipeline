@@ -1,5 +1,6 @@
 import os
 from azure.storage.blob import BlobServiceClient
+from azure.core.pipeline.transport import RequestsTransport
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 import logging
@@ -21,8 +22,14 @@ AZURE_STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 if AZURE_STORAGE_CONNECTION_STRING is None:
     raise EnvironmentError("AZURE_STORAGE_CONNECTION_STRING is not set.")
 
+
+# Create a custom transport with extended timeouts
+transport = RequestsTransport(connection_timeout=60, read_timeout=600)
+
 # Initialize the blob service client
-blob_service = BlobServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
+blob_service = BlobServiceClient.from_connection_string(
+    AZURE_STORAGE_CONNECTION_STRING,
+    transport=transport)
 
 # ============================================
 # Azure Blob Storage utility functions 
@@ -76,9 +83,40 @@ def upload_file_to_blob(container_name, local_path, blob_name):
         blob_client.upload_blob(
             data, 
             overwrite=True,  
-            max_concurrency=1,  # Use 1 thread for slow connections
-            max_block_size=2 * 1024 * 1024,  # 2MB chunks
-            timeout=600)  # Increased timeout for large files
+            max_concurrency=1,  
+            timeout=1200)  # Increased timeout for large files
+
+def upload_large_file_to_blob(container_name, local_path, blob_name):
+    """
+    Uploads a local file to the specified blob container using block blob upload.
+    Handles both small and large files reliably, especially in Docker environments.
+    """
+    # Adjust this if needed
+    block_size = 4 * 1024 * 1024  # 4MB
+
+    blob_client = blob_service.get_blob_client(container=container_name, blob=blob_name)
+    file_size = os.path.getsize(local_path)
+
+    # For small files, use simple upload
+    if file_size <= block_size:
+        with open(local_path, "rb") as data:
+            blob_client.upload_blob(data, overwrite=True)
+        return
+
+    # For larger files, use block upload
+    block_ids = []
+    with open(local_path, "rb") as file:
+        i = 0
+        while True:
+            data = file.read(block_size)
+            if not data:
+                break
+            block_id = f"{i:06}".encode("utf-8")
+            blob_client.stage_block(block_id=block_id, data=data)
+            block_ids.append(block_id)
+            i += 1
+
+    blob_client.commit_block_list(block_ids)
 
 def download_images_for_field(container_name, client_id, field_id):
     """
