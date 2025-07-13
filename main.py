@@ -4,6 +4,7 @@ from indices import compute_vari
 import os
 from azure.storage.blob import BlobServiceClient
 from datetime import datetime, timezone
+import glob
 
 # Get the connection string securely from the environment
 AZURE_STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
@@ -66,7 +67,7 @@ def download_images_for_field(container_name, client_id, field_id):
     """
     Downloads all images under raw-images/<client_id>/<field_id>/ into the local input folder
     """
-    image_dir = f"raw-images/{client_id}/{field_id}/"
+    image_dir = f"{container_name}/{client_id}/{field_id}/"
 
     container_client = blob_service.get_container_client(container_name)
     blobs = container_client.list_blobs(name_starts_with=image_dir)
@@ -83,11 +84,11 @@ def download_images_for_field(container_name, client_id, field_id):
 
         # Check if file already exists
         if os.path.exists(local_path):
-            print(f"Skipping {blob.name} — already exists at {local_path}")
+            print(f"  Skipping {blob.name} — already exists at {local_path}")
             continue
 
         # Download the blob to the local path
-        print(f"Downloading {blob.name} → {local_path}")
+        print(f"  Downloading {blob.name} → {local_path}")
         download_blob_to_file(container_name, blob.name, local_path)
     
     return image_dir
@@ -101,20 +102,38 @@ def main():
     args = parser.parse_args()
 
     # ---- Download images for the specified client and field ----
-    print(f"Downloading images for client '{args.client_id}' and field '{args.field_id}'...")
+    print(f"\nDownloading images for client '{args.client_id}' and field '{args.field_id}'...")
     
     raw_container = "raw-images"
     input_dir = download_images_for_field(raw_container, args.client_id, args.field_id)
     
     # ---- Convert and stitch images ----
     
-    print("Converting and stitching images...")
+    print("\nConverting and stitching images...")
 
     converted_container = "converted-tiles"
-    mosaic_container = "proecssed-mosaics"
+    mosaic_container = "processed-mosaics"
 
     converted_dir, mosaic_path = convert_and_stitch(input_dir, converted_container, mosaic_container)
 
+    # ---- Upload the converted images to the converted container ----
+    
+    print(f"\nUploading converted images to '{converted_container}'...")
+    
+    for tif_file in glob.glob(os.path.join(converted_dir, '*.tif')):
+        blob_name = tif_file
+        # Upload the blob to the container
+        print(f"  Uploading {blob_name} to {converted_dir}...")
+        upload_file_to_blob(converted_container, tif_file, blob_name)
+
+    print("\nConverted images uploaded successfully.")
+    
+    # ---- Upload the final mosaic to the mosaic container ----
+    
+    print(f"  Uploading final mosaic to '{mosaic_container}'...")
+    upload_file_to_blob(mosaic_container, mosaic_path, mosaic_path)
+    print("\nMosaic uploaded successfully.")
+    
     # ---- Compute the specified vegetation index ----
     
     index_container = "index-maps"
@@ -123,20 +142,26 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
 
     if args.index == 'VARI':
-        print("Computing VARI...")
+        print("\nComputing VARI...")
         compute_vari(mosaic_path, output_dir)
 
-    print("Processing complete. Results saved to:", output_dir)
+    print("\nProcessing complete. Results saved to:", output_dir)
+
+    # ---- Upload the index results ----
+    
+    print(f"\nUploading index results to '{index_container}'...")
+    
+    for index_file in glob.glob(os.path.join(output_dir, '*.tif')):
+        blob_name = index_file
+        print(f"  Uploading {index_file} as {blob_name}")
+        upload_file_to_blob(index_container, index_file, blob_name)
+        
+
+    print("\nIndex results uploaded successfully.")
+
+    print("\nAll pipeline operations completed successfully.")
 
 if __name__ == "__main__":
+    print("Initailizing the Kilimo Anga Photogrammetry Pipeline")
     main()
-    #test_upload_and_download()
     
-    
-    #container_name = "raw-images"
-    #client_id = "test"
-    #field_id = "field-001"
-
-    # Download images for a specific field
-    #text = download_images_for_field(container_name, client_id, field_id)
-    #print(text)

@@ -7,9 +7,6 @@ import matplotlib
 
 def save_index(index_array, profile, output_path):
     # Scale NDVI [-1, 1] → 0–255
-    array_max = np.nanmax(index_array)
-    array_min = np.nanmin(index_array)
-    print(f"Max: {array_max}, Min: {array_min}")
 
     scaled = 255 * (index_array - np.nanmin(index_array)) / (np.nanmax(index_array) - np.nanmin(index_array))
     scaled = scaled.astype('uint8')
@@ -54,5 +51,5 @@ def compute_vari(image_path, output_dir):
     # Save the outputs
     save_index(vari, profile, tif_output_path)
 
-    print("VARI saved successfully.")
+    print("\nVARI saved successfully.")
 
