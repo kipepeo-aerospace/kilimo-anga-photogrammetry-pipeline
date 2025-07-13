@@ -115,7 +115,7 @@ def main():
         logger.info("Computing VARI...")
         compute_vari(mosaic_path, output_dir)
 
-    logger.info("Processing complete. Results saved to:", output_dir)
+    logger.info("Processing complete. Index maps saved")
 
     # ---- Upload the index results ----
     
@@ -123,7 +123,7 @@ def main():
     
     for index_file in glob.glob(os.path.join(output_dir, '*.tif')):
         blob_name = index_file
-        logger(f"  Uploading {index_file} as {blob_name}")
+        logger.info(f"  Uploading {index_file} as {blob_name}")
         upload_file_to_blob(INDICES_CONTAINER, index_file, blob_name)
 
     logger.info("Index results uploaded successfully.")
