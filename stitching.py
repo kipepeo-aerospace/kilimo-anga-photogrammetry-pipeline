@@ -249,7 +249,7 @@ def stitch_geotiffs(tiff_dir, output_path):
     for src in src_files_to_mosaic:
         src.close()
 
-def convert_and_stitch(input_dir, converted, mosaic):
+def convert_and_stitch(input_dir, converted, mosaic, args):
     """Converts JPG images to GeoTIFFs and stitches them into a mosaic."""
     # --- Pipeline Execution ---
     
@@ -282,7 +282,7 @@ def convert_and_stitch(input_dir, converted, mosaic):
         mosaic_dir = os.path.join(mosaic,relative_path)
         os.makedirs(mosaic_dir, exist_ok=True)
 
-        mosaic_path = os.path.join(mosaic_dir, 'mosaic.tif')
+        mosaic_path = os.path.join(mosaic_dir, f"{args.field_id}.tif")
         stitch_geotiffs(converted_dir, mosaic_path)
         logger.info(f"Stitching complete. The final mosaic has been saved to '{mosaic_path}'")
 
@@ -291,6 +291,14 @@ def convert_and_stitch(input_dir, converted, mosaic):
         logger.error("No images were converted, so stitching was skipped.")
         logger.error("This is likely because no GPS data was found in your JPGs.")
 
-
-
+def convert_tif_to_jpg(tif_path, jpg_path=None):
+    """Simple TIFF → JPG conversion for browser viewing."""
+    if jpg_path is None:
+        jpg_path = os.path.splitext(tif_path)[0] + '.jpg'
+    
+    with Image.open(tif_path) as img:
+        img = img.convert("RGB")  # Force RGB for JPEG compatibility
+        img.save(jpg_path, "JPEG", quality=90)
+    
+    return jpg_path
     

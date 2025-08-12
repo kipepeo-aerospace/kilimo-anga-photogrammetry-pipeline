@@ -1,6 +1,6 @@
 import argparse
-from stitching import convert_and_stitch
-from indices import compute_vari
+from stitching import convert_and_stitch, convert_tif_to_jpg
+from indices import compute_vari, compute_gndvi, compute_ndvi, compute_savi, convert_index_tif_to_jpg
 from azure_blob import upload_file_to_blob, download_images_for_field, upload_large_file_to_blob
 import os
 import glob
@@ -56,9 +56,8 @@ def runtime_args():
     parser.add_argument(
         '--index', 
         type=str, 
-        default=os.getenv("VEGETATION_INDEX"),
-        choices=['VARI'], 
-        help='Vegetation index to compute')
+        default=os.getenv("VEGETATION_INDEX"), 
+        help='Comma separated Vegetation index to compute')
     
     args =  parser.parse_args()
     
@@ -67,6 +66,17 @@ def runtime_args():
         raise ValueError("Missing client_id, field_id, or index.")
 
     return args
+
+# ============================================
+# Mapping the vegetation indices to functions
+# ============================================
+
+INDEX_FUNCTIONS = {
+    'VARI': compute_vari,
+    'NDVI': compute_ndvi,
+    'GNDVI': compute_gndvi,
+    'SAVI': compute_savi
+} 
 
 # ============================================
 # Main pipeline function
@@ -85,7 +95,7 @@ def main():
     
     logger.info("Converting and stitching images...")
 
-    converted_dir, mosaic_path = convert_and_stitch(input_dir, TIF_CONTAINER, MOSAIC_CONTAINER)
+    converted_dir, mosaic_path = convert_and_stitch(input_dir, TIF_CONTAINER, MOSAIC_CONTAINER, args)
 
     # ---- Upload the converted images to the converted container ----
     
@@ -99,32 +109,46 @@ def main():
 
     logger.info("Converted images uploaded successfully.")
     
-    # ---- Upload the final mosaic to the mosaic container ----
+    # ---- Convert TIF mosaic to JPG and upload them both to the mosaic container ----
     
-    logger.info(f"  Uploading final mosaic to '{MOSAIC_CONTAINER}'...")
+    logger.info("Converting mosaic to JPG...")
+    jpg_mosaic_path = convert_tif_to_jpg(mosaic_path)
+
+    logger.info(f"Uploading final mosaics to '{MOSAIC_CONTAINER}'...")
     upload_large_file_to_blob(MOSAIC_CONTAINER, mosaic_path, mosaic_path)
-    logger.info("Mosaic uploaded successfully.")
+    upload_large_file_to_blob(MOSAIC_CONTAINER, jpg_mosaic_path, jpg_mosaic_path)
+    logger.info("Mosaics uploaded successfully.")
     
-    # ---- Compute the specified vegetation index ----
+    # ---- Compute the vegetation indices ----
 
     relative_path = os.path.relpath(converted_dir, start=TIF_CONTAINER)
     output_dir = os.path.join(INDICES_CONTAINER, relative_path)
     os.makedirs(output_dir, exist_ok=True)
 
-    if args.index == 'VARI':
-        logger.info("Computing VARI...")
-        compute_vari(mosaic_path, output_dir)
-
-    logger.info("Processing complete. Index maps saved")
-
-    # ---- Upload the index results ----
+    # Loop through indices to process
+    for index_name in args.index.split(','):  # if you're passing "VARI,NDVI" as a string
+        index_name = index_name.strip().upper()
+        if index_name in INDEX_FUNCTIONS:
+            logger.info(f"Computing {index_name}...")
+            INDEX_FUNCTIONS[index_name](mosaic_path, output_dir)
+        else:
+            logger.warning(f"Unknown index: {index_name}")
     
+    logger.info("All indices computed successfully.")
+
+    # ---- Upload them both to index container ----
+
     logger.info(f"Uploading index results to '{INDICES_CONTAINER}'...")
     
     for index_file in glob.glob(os.path.join(output_dir, '*.tif')):
         blob_name = index_file
-        logger.info(f"  Uploading {index_file} as {blob_name}")
+        logger.info(f"Uploading {index_file} as {blob_name}")
         upload_large_file_to_blob(INDICES_CONTAINER, index_file, blob_name)
+
+        # convert and upload JPG version of the index as well
+        logger.info(f"Converting {index_file} to JPG and uploading as {blob_name}.jpg")
+        jpg_index_path = convert_index_tif_to_jpg(index_file)
+        upload_large_file_to_blob(INDICES_CONTAINER, jpg_index_path, jpg_index_path)
 
     logger.info("Index results uploaded successfully.")
 
