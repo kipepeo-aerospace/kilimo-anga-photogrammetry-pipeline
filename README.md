@@ -46,7 +46,7 @@ docker build -t photogrammetry-pipeline .
 ### Run Container
 
 ```bash
-docker run --env-file .env kilimo-anga-pipeline
+docker run --env-file .env photogrammetry-pipeline
 ```
 
 ---
@@ -67,7 +67,7 @@ docker run --env-file .env kilimo-anga-pipeline
 
 4. **Index Phase**:
 
-   * Computes vegetation indices (currently NDVI) and saves result as GeoTIFF.
+   * Computes vegetation indices and saves result as GeoTIFF.
 
 5. **Upload Phase**:
 
@@ -79,8 +79,9 @@ docker run --env-file .env kilimo-anga-pipeline
 
 ```
 raw-images/
-└── client-001/
-    └── field-001/
+└──raw-images/
+   └── client-001/
+      └── field-001/
         ├── IMG_001.JPG
         ├── IMG_002.JPG
         └── ...
