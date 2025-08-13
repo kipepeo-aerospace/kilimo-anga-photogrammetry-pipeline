@@ -50,7 +50,8 @@ output_images/
 input/
 output/
 test_images/
-results/    
+results/
+raw-images/    
 *.tif
 *.jpg
 *.JPG

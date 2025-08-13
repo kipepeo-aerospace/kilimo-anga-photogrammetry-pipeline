@@ -261,13 +261,16 @@ def convert_and_stitch(input_dir, converted, mosaic, args):
 
     logger.info(f"Starting conversion of JPGs from '{input_dir}' to GeoTIFFs in '{converted_dir}'...")
     
-    converted_tiffs = []
+    image_extensions = ['*.JPG', '*.JPEG', '*.jpg', '*.jpeg', '*.PNG', '*.png']
     
-    for jpg_file in glob.glob(os.path.join(input_dir, '*.JPG')):
-        tiff_path = convert_jpg_to_geotiff(jpg_file, converted_dir)
-        if tiff_path:
-            converted_tiffs.append(tiff_path)
-            logger.info(f"  Successfully converted {jpg_file} to {tiff_path}")
+    converted_tiffs = []
+    # Loop through all image extensions and convert them
+    for ext in image_extensions:
+        for jpg_file in glob.glob(os.path.join(input_dir, ext)):
+            tiff_path = convert_jpg_to_geotiff(jpg_file, converted_dir)
+            if tiff_path:
+                converted_tiffs.append(tiff_path)
+                logger.info(f"  Successfully converted {jpg_file} to {tiff_path}")
     
     logger.info(f"Conversion complete. {len(converted_tiffs)} GeoTIFFs created in '{converted_dir}'")
     
