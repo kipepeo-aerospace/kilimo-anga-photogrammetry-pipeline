@@ -35,7 +35,15 @@ photogrammetry-pipeline/
 
 ---
 
-## 📦 Docker Build & Run
+## 📦 Build & Run
+
+### Create and Activate Python Environment (dev)
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+```
 
 ### Build Image
 
