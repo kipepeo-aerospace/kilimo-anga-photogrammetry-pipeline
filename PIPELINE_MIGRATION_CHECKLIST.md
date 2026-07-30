@@ -13,7 +13,7 @@
 - [ ] Remove `azure-storage-blob` from `requirements.txt`, add `google-cloud-storage`.
 - [ ] Update every function to use the `google-cloud-storage` client and `gs://` URIs instead of Azure blob container references — **keep the exact same function signatures** (same function names, same arguments) so `main.py` doesn't need structural changes, only the import line.
 - [ ] Map bucket usage: raw images → `angastack-raw-images`, converted TIFFs → `angastack-tiffs`, orthomosaic → `angastack-mosaics`, NDVI/VARI outputs → `angastack-index-maps`.
-- [ ] Confirm path pattern used when reading/writing: `{user_id}/{farm_id}/{job_id}/filename`.
+- [ ] Confirm path pattern used when reading/writing: `{user_id}/{farm_id}/{season_id}/{observation_id}/filename`.
 
 ---
 
@@ -37,7 +37,7 @@ This is the core gap-fix: the current version only produces visual NDVI/VARI map
   stats.vari.mean / min / max
   stats.zone_breakdown: [ { zone_id, ndvi_mean, stress_level, pixel_count }, ... ]
   ```
-- [ ] Write this payload directly to the Firestore document at `users/{user_id}/farms/{farm_id}/jobs/{job_id}` using the `google-cloud-firestore` client (added in the next section) — don't route this through the backend API, the pipeline writes directly.
+- [ ] Write this payload directly to the Firestore document at `users/{user_id}/farms/{farm_id}/seasons/{season_id}/observations/{observation_id}` using the `google-cloud-firestore` client (added in the next section) — don't route this through the backend API, the pipeline writes directly.
 
 ---
 
@@ -45,7 +45,7 @@ This is the core gap-fix: the current version only produces visual NDVI/VARI map
 
 - [ ] Update imports: replace `azure_blob` with `gcs_storage`.
 - [ ] Add `google-cloud-firestore` to `requirements.txt` and initialise a Firestore client at startup.
-- [ ] Reconfigure CLI/env-var input parameters to match what Cloud Run Jobs will pass in: `USER_ID`, `FARM_ID`, `JOB_ID` (these arrive as environment variable overrides at job execution time, set by the backend when it triggers the job — see Backend checklist).
+- [ ] Reconfigure CLI/env-var input parameters to match what Cloud Run Jobs will pass in: `USER_ID`, `FARM_ID`, `SEASON_ID`, `OBSERVATION_ID` (these arrive as environment variable overrides at job execution time, set by the backend when it triggers the job — see Backend checklist).
 - [ ] After the pipeline finishes successfully, update the Firestore job document's `status` field to `"complete"` directly from `main.py` — this fully decouples pipeline completion from the backend API (the backend just watches Firestore rather than being told directly by the pipeline).
 - [ ] Set `completed_at` timestamp on the same write.
 - [ ] On failure, catch the exception and write `status: "failed"` with an error message field, so failures are visible in Firestore rather than silently disappearing.
@@ -110,7 +110,7 @@ This is the core gap-fix: the current version only produces visual NDVI/VARI map
     ```bash
     gcloud run jobs execute angacloud-pipeline-job \
       --region=europe-west1 \
-      --update-env-vars=USER_ID=test-user,FARM_ID=test-farm,JOB_ID=test-job
+      --update-env-vars=USER_ID=test-user,FARM_ID=test-farm,SEASON_ID=test-season,OBSERVATION_ID=test-observation
     ```
 - [ ] Verify: orthomosaic and index maps land in `angastack-mosaics` / `angastack-index-maps`, `stats` JSON appears on the Firestore job document, and `status` flips to `complete`.
 
